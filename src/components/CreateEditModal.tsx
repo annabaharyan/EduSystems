@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-
-import { Modal, Tabs, message } from "antd";
+import { Modal, Tabs } from "antd";
 
 import type { EduDegrees } from "../types";
 import type { AppDispatch } from "../redux/store";
@@ -10,6 +9,7 @@ import { selectDefaultLang } from "../redux/features/Languages/languagesSlice";
 import { addEducation, editEducation } from "../redux/features/Degrees/request";
 
 import EduForm from "./EduForm";
+import {notify} from "../helpers/notifHelper.ts";
 
 type CreateEditModalProps = {
   isModalOpen: boolean;
@@ -25,50 +25,64 @@ const LANGS = [
 
 const CreateEditModal = ({ isModalOpen, record, onCancel }: CreateEditModalProps) => {
   const defaultLang = useSelector(selectDefaultLang);
-  const dispatch:any = useDispatch<AppDispatch>();
+  const dispatch: any = useDispatch<AppDispatch>();
 
-  const [translations, setTranslations] = useState<Record<string, { name: string; abbreviation: string, startDate?:string, endDate?:string}>>({});
+  const [translations, setTranslations] = useState<
+    Record<string, { name: string; abbreviation: string }>
+  >({});
+  const [startDate, setStartDate] = useState<string | null>(null);
+  const [endDate, setEndDate] = useState<string | null>(null);
 
   useEffect(() => {
     if (isModalOpen && record) {
-      const matched = record.translations.find(t => t.slug === defaultLang);
-      setTranslations(matched ? {
-        [defaultLang]: {
-          name: matched.name,
-          abbreviation: matched.abbreviation
-        }
-      } : {});
+      const initialTranslations: typeof translations = {};
+      record.translations.forEach((t) => {
+        initialTranslations[t.slug] = {
+          name: t.name,
+          abbreviation: t.abbreviation,
+        };
+      });
+
+      setTranslations(initialTranslations);
+      setStartDate(record.start_date ?? null);
+      setEndDate(record.end_date ?? null);
     } else if (!record && isModalOpen) {
-      setTranslations({});
+      const emptyTranslations = LANGS.reduce((acc, { slug }) => {
+        acc[slug] = { name: "", abbreviation: "" };
+        return acc;
+      }, {} as typeof translations);
+
+      setTranslations(emptyTranslations);
+      setStartDate(null);
+      setEndDate(null);
     }
   }, [isModalOpen, record, defaultLang]);
 
   const handleChange = (slug: string, values: { name: string; abbreviation: string }) => {
-    setTranslations(prev => ({
+    setTranslations((prev) => ({
       ...prev,
       [slug]: values,
     }));
   };
 
   const handleSave = async () => {
+
     const filled = Object.entries(translations)
       .filter(([_, val]) => val.name?.trim() || val.abbreviation?.trim())
       .map(([slug, val]) => ({
         slug,
         name: val.name?.trim() || "",
         abbreviation: val.abbreviation?.trim() || "",
-        start_date: val.startDate || null,
-        end_date: val.endDate || null,
       }));
 
     if (filled.length === 0) {
-      message.error("Please fill at least one translation.");
+      notify({ type: "error", message: "Please fill at least one translation." });
       return;
     }
 
     const basePayload = {
-      start_date: record?.start_date ?? new Date().toISOString(),
-      end_date: record?.end_date ?? null,
+      start_date: startDate ?? new Date().toISOString(),
+      end_date: endDate,
       translations: filled,
     };
 
@@ -76,29 +90,33 @@ const CreateEditModal = ({ isModalOpen, record, onCancel }: CreateEditModalProps
       let resultAction;
 
       if (record?.id) {
-        // Edit logic
         resultAction = await dispatch(editEducation({ id: record.id, ...basePayload }));
-
         if (editEducation.fulfilled.match(resultAction)) {
-          message.success("Education updated successfully.");
-          onCancel();
-        } else {
-          message.error(resultAction.payload || "Update failed.");
+          notify({ type: "success", message: "Education updated successfully." });
+          handleCancel();
+          return;
         }
+        notify({ type: "error", message: resultAction.payload || "Update failed." });
       } else {
-        // Add logic
         resultAction = await dispatch(addEducation(basePayload));
-
         if (addEducation.fulfilled.match(resultAction)) {
-          message.success("Education added successfully.");
-          onCancel();
-        } else {
-          message.error(resultAction.payload || "Add failed.");
+          notify({ type: "success", message: "Education added successfully." });
+          handleCancel();
+          return;
         }
+        notify({ type: "error", message: resultAction.payload || "Add failed." });
       }
     } catch (error) {
-      message.error("Unexpected error occurred.");
+      notify({ type: "error", message: "Unexpected error occurred." });
     }
+  };
+
+
+  const handleCancel = () => {
+    setTranslations({});
+    setStartDate(null);
+    setEndDate(null);
+    onCancel();
   };
 
   const tabItems = LANGS.map(({ slug, label }) => ({
@@ -116,19 +134,23 @@ const CreateEditModal = ({ isModalOpen, record, onCancel }: CreateEditModalProps
         slug={slug}
         values={translations[slug] || { name: "", abbreviation: "" }}
         onChange={handleChange}
-        mode={record?'edit':'add'}
+        mode={record ? "edit" : "add"}
+        startDate={startDate}
+        endDate={endDate}
+        onStartDateChange={setStartDate}
+        onEndDateChange={setEndDate}
       />
     ),
   }));
 
   return (
     <Modal
-      title="Edit Education"
+      title={record ? "Edit Education" : "Add Education"}
       open={isModalOpen}
-      onCancel={onCancel}
+      onCancel={handleCancel}
       onOk={handleSave}
-      okText='Save'
-      cancelText='Cancel'
+      okText="Save"
+      cancelText="Cancel"
     >
       <Tabs defaultActiveKey={defaultLang} items={tabItems} />
     </Modal>

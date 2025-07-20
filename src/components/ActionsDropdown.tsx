@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { Button, Dropdown, message } from "antd";
+import { Button, Dropdown } from "antd";
 import { DashOutlined } from "@ant-design/icons";
 
 import type { EduDegrees } from "../types";
@@ -10,6 +10,7 @@ import { useAppDispatch } from "../redux/store";
 import { deleteEducationById } from "../redux/features/Degrees/request";
 
 import DeleteModal from "./DeleteModal";
+import {notify} from "../helpers/notifHelper.ts";
 
 type ActionDropdownProps={
   record: EduDegrees |null,
@@ -22,11 +23,12 @@ const ActionDropdown = ({ record, editableRecord }: ActionDropdownProps) => {
   const handleDelete = async (id: number | null) => {
     if (id === null) return;
     try {
-      await dispatch(deleteEducationById(id));
-      message.success(`Education with ID ${id} deleted`);
+      await dispatch(deleteEducationById(id)).unwrap();
+      notify({type:"success",message:`Education with ID ${id} deleted`});
       setDeletableRecordId(null);
     } catch (err) {
-      message.error('Failed to delete education');
+      notify({type:"error",message:"Failed to delete education"});
+      setDeletableRecordId(null);
     }
   };
 

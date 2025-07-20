@@ -3,11 +3,11 @@ import { useSelector } from "react-redux";
 import type { RootState } from "../redux/store";
 import { useAppDispatch } from "../redux/store";
 
-import { Table, Button } from "antd";
+import {Table, Button} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { PlusOutlined } from "@ant-design/icons";
 
-import moment from "moment";
+import dayjs from "dayjs";
 
 import type { EduDegrees } from "../types";
 
@@ -60,13 +60,13 @@ const EducationTable = () => {
       title: "Start Date",
       key: "start_date",
       fixed: "left",
-      render: (_, record) => moment(record.start_date).format("DD/MM/YYYY"),
+      render: (_, record) => dayjs(record.start_date).format("DD/MM/YYYY"),
     },
     {
       title: "End Date",
       key: "end_date",
       fixed: "left",
-      render: (_, record) => record.end_date && moment(record.end_date).format("DD/MM/YYYY"),
+      render: (_, record) => record.end_date && dayjs(record.end_date).format("DD/MM/YYYY"),
     },
     {
       title: "",
